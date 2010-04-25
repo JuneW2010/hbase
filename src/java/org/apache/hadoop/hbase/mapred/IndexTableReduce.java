@@ -78,7 +78,7 @@ public class IndexTableReduce extends MapReduceBase implements
     // index and store row key, row key already UTF-8 encoded
     Field keyField = new Field(indexConf.getRowkeyName(),
       Bytes.toString(key.get(), key.getOffset(), key.getLength()),
-      Field.Store.YES, Field.Index.UN_TOKENIZED);
+      Field.Store.YES, Field.Index.NOT_ANALYZED);
     keyField.setOmitNorms(true);
     doc.add(keyField);
 
@@ -94,7 +94,7 @@ public class IndexTableReduce extends MapReduceBase implements
           Field.Store.YES: Field.Store.NO;
         Field.Index index = indexConf.isIndex(column)?
           (indexConf.isTokenize(column)?
-            Field.Index.TOKENIZED: Field.Index.UN_TOKENIZED):
+            Field.Index.ANALYZED: Field.Index.NOT_ANALYZED):
             Field.Index.NO;
 
         // UTF-8 encode value
