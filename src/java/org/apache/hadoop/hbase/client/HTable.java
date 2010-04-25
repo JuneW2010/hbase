@@ -592,6 +592,46 @@ public class HTable {
         }
     );
   }
+  
+  /**
+  * Adds a given document, represented as document Id, to a given term , represented by the given row. <p>
+  *
+  * Setting writeToWAL to false means that in a fail scenario, you will lose
+  * any increments that have not been flushed.
+  * @param row
+  * @param family
+  * @param qualifier
+  * @param amount
+  * @param writeToWAL true if increment should be applied to WAL, false if not
+  * @return The new value.
+  * @throws IOException
+  */
+  public boolean addDocToTerm(final byte [] row, final byte [] family,
+        final long docId, final boolean writeToWAL)
+    throws IOException {
+      NullPointerException npe = null;
+      if (row == null) {
+        npe = new NullPointerException("row is null");
+      } else if (family == null) {
+        npe = new NullPointerException("column is null");
+      }
+      if (npe != null) {
+        IOException io = new IOException(
+            "Invalid arguments to incrementColumnValue", npe);
+        throw io;
+      }
+      return connection.getRegionServerWithRetries(
+          new ServerCallable<Boolean>(connection, tableName, row) {
+            public Boolean call() throws IOException {
+              server.addDocToTerm(
+                  location.getRegionInfo().getRegionName(), row, family,
+                  Bytes.toBytes(docId), writeToWAL);
+              return true;
+            }
+          }
+      );
+    }
+    
 
   /**
    * Atomically checks if a row/family/qualifier value match the expectedValue.
