@@ -257,5 +257,20 @@ public interface HRegionInterface extends HBaseRPCProtocolVersion {
    * @throws IOException
    */
   public MultiPutResponse multiPut(MultiPut puts) throws IOException;
+  
+
+  /**
+   *  Add Document to the termVector, with the row specified as the term.
+   *
+   *   @param regionName
+   *  @param row
+   * @param family
+   * @param docId
+   * @param writeToWAL
+   * @return
+   *  @throws IOException
+   **/
+  public void addDocToTerm(byte[] regionName, byte[] row, byte[] family,
+      final byte[] docId, boolean writeToWAL) throws IOException;
 
 }

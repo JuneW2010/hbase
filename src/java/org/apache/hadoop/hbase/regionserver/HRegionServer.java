@@ -2490,6 +2490,34 @@ public class HRegionServer implements HConstants, HRegionInterface,
     }
   }
   
+  /**
+   * Add Document to the termVector, with the row specified as the term.
+   *
+   *  @param regionName
+   *  @param row
+   *  @param family
+   * @param docId
+   * @param writeToWAL
+   *  @return
+   **/
+  public void addDocToTerm(byte[] regionName, byte[] row, byte[] family,
+        byte[] docId, boolean writeToWAL) throws IOException {
+    if (row == null)
+      throw new IllegalArgumentException("update has null row");
+      
+    checkOpen();
+    this.requestCount.incrementAndGet();
+    HRegion region = getRegion(regionName);
+    try {
+      if (!region.getRegionInfo().isMetaTable()) {
+        this.cacheFlusher.reclaimMemStoreMemory();
+      }
+      region.addDocToTerm(row, family, docId, writeToWAL, getLockFromId(-1));
+    } catch (Throwable t) {
+      throw convertThrowableToIOE(cleanup(t));
+    }
+  }
+    
   /** {@inheritDoc} */
   public HRegionInfo[] getRegionsAssignment() throws IOException {
     HRegionInfo[] regions = new HRegionInfo[onlineRegions.size()];

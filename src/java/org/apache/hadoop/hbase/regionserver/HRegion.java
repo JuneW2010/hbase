@@ -44,12 +44,14 @@ package org.apache.hadoop.hbase.regionserver;
  import org.apache.hadoop.hbase.io.Reference.Range;
  import org.apache.hadoop.hbase.io.hfile.BlockCache;
  import org.apache.hadoop.hbase.ipc.HRegionInterface;
+import org.apache.hadoop.hbase.regionserver.lucene.HBaseneUtil;
  import org.apache.hadoop.hbase.util.Bytes;
  import org.apache.hadoop.hbase.util.ClassSize;
  import org.apache.hadoop.hbase.util.FSUtils;
  import org.apache.hadoop.hbase.util.Writables;
  import org.apache.hadoop.util.Progressable;
  import org.apache.hadoop.util.StringUtils;
+import org.apache.lucene.util.OpenBitSet;
 
  import java.io.IOException;
  import java.io.UnsupportedEncodingException;
@@ -71,7 +73,7 @@ package org.apache.hadoop.hbase.regionserver;
  import java.util.concurrent.ConcurrentSkipListMap;
  import java.util.concurrent.atomic.AtomicBoolean;
  import java.util.concurrent.atomic.AtomicLong;
- import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
  /**
  * HRegion stores data for a certain region of a table.  It stores all columns
@@ -1436,6 +1438,83 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
     }
   }
 
+
+  /**
+* @param input The Given put to be serialized
+* @param lockid
+* @param writeToWAL
+* @throws IOException
+*/
+  public void addDocToTerm(final byte[] row, final byte[] family, final byte[] docId, boolean writeToWAL, Integer lockid)
+  throws IOException {
+    checkReadOnly();
+
+    // Do a rough check that we have resources to accept a write. The check is
+    // 'rough' in that between the resource check and the call to obtain a
+    // read lock, resources may run out. For now, the thought is that this
+    // will be extremely rare; we'll deal with it when it happens.
+    checkResources();
+    
+    //Before locking - transform the put.
+    
+    splitsAndClosesLock.readLock().lock();
+
+    try {
+      // We obtain a per-row lock, so other clients will block while one client
+      // performs an update. The read lock is released by the client calling
+      // #commit or #abort or if the HRegionServer lease on the lock expires.
+      // See HRegionServer#RegionListener for how the expire on HRegionServer
+      // invokes a HRegion#abort.
+      // If we did not pass an existing row lock, obtain a new one
+      Integer lid = getLock(lockid, row);
+      try {
+        // All edits for the given row (across all column families) must happen atomically.
+        put(this.xformTermVector(row, family, docId), writeToWAL);
+      } finally {
+        if(lockid == null) releaseRowLock(lid);
+      }
+    } finally {
+      splitsAndClosesLock.readLock().unlock();
+    }
+  }
+
+  
+  /**
+* Transform the given row and docId to a term vector for insertion.
+*
+* @param put
+* @return
+* @throws IOException
+*/
+  Map<byte[], List<KeyValue>> xformTermVector(final byte[] row, final byte[] family, final byte[] docIdBytes) throws IOException {
+    final Map<byte[], List<KeyValue>> familyMap = new TreeMap<byte[], List<KeyValue>>();
+    final long docId = Bytes.toLong(docIdBytes);
+    
+    final int partition = (int) ( docId / HBaseneUtil.MAX_DOCS );
+    final int offset = (int) ( docId % HBaseneUtil.MAX_DOCS );
+    
+    final byte[] qualifier = HBaseneUtil.createTermVectorQualifier(partition);
+    Get get = new Get(row);
+    get.addColumn(family, qualifier);
+    List<KeyValue> results = this.get(get);
+    //xformation begins
+    OpenBitSet resultBitSet = null;
+    if (results == null || results.size() == 0) {
+      resultBitSet = HBaseneUtil.createDefaultOpenBitSet();
+    }
+    else {
+      resultBitSet = HBaseneUtil.toOpenBitSet(results.get(0).getValue());
+    }
+    resultBitSet.set(offset);
+    byte [] revisedValue = HBaseneUtil.toBytes(resultBitSet);
+    //xformation ends. Good candidate for refactoring out of this method
+    
+    List<KeyValue> result = new ArrayList<KeyValue>();
+    result.add(new KeyValue(row, family, qualifier, revisedValue));
+
+    familyMap.put(family, result);
+    return familyMap;
+  }  
   
   //TODO, Think that gets/puts and deletes should be refactored a bit so that 
   //the getting of the lock happens before, so that you would just pass it into
