@@ -69,7 +69,6 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
     
     get = new Get(row);
     get.addFamily(FAMILY_TERMVECTOR);
-//    get.addColumn(CATALOG_FAMILY, Bytes.toBytes(Integer.toString(1)));
     System.out.println("Getting row");
     long start = System.nanoTime();
     result = table.get(get);
@@ -86,34 +85,62 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
     Assert.assertFalse( bitset.get(2) );
     Assert.assertFalse( bitset.get(11) );
     Assert.assertFalse( bitset.get(101) );
-    
-//    get = new Get(row);
-//    result = table.get(get);
-//    for(int i = 0; i < 5; i++)
-//      assertTrue(result.containsColumn(CATALOG_FAMILY, 
-//          Bytes.toBytes(Integer.toString(i))));
-//
-//    byte [] family = Bytes.toBytes("info2");
-//    byte [] qf = Bytes.toBytes("a");
-//    
-//    put = new Put(row);
-//    put.add(family, qf, qf);
-//    table.put(put);
-//    
-//    get = new Get(row);
-//    get.addFamily(CATALOG_FAMILY);
-//    get.addColumn(family, qf);
-//    result = table.get(get);
-//    for(int i = 0; i < 5; i++)
-//      assertTrue(result.containsColumn(CATALOG_FAMILY, 
-//          Bytes.toBytes(Integer.toString(i))));
-//    assertTrue(result.containsColumn(family, qf));
   } catch (IOException e) {
     e.printStackTrace();
     fail("Should not have any exception " +
       e.getClass());
   }   
   }
+
+  public void testAddDocToTermNoWAL() { 
+    HTable table = null;
+    try {
+      HColumnDescriptor column2 =
+        new HColumnDescriptor(FAMILY_TERMVECTOR);
+      HBaseAdmin admin = new HBaseAdmin(conf);
+      HTableDescriptor testTableADesc =
+        new HTableDescriptor(tableAname);
+      testTableADesc.addFamily(column);
+      testTableADesc.addFamily(column2);
+      admin.createTable(testTableADesc);
+      
+      table = new HTable(conf, tableAname);
+      System.out.println("Adding a Document to a table");
+
+      table.addDocToTerm(row, FAMILY_TERMVECTOR, 1, false);
+
+      table.addDocToTerm(row, FAMILY_TERMVECTOR, 20, false);
+      
+      table.addDocToTerm(row, FAMILY_TERMVECTOR, 100, false);
+      
+      Get get = null;
+      Result result = null;
+      
+      get = new Get(row);
+      get.addFamily(FAMILY_TERMVECTOR);
+      System.out.println("Getting row");
+      long start = System.nanoTime();
+      result = table.get(get);
+      long stop = System.nanoTime();
+      System.out.println("timer " +(stop-start));
+      System.out.println("result " +result);
+
+      byte[] value = result.getValue(FAMILY_TERMVECTOR, HBaseneUtil.createTermVectorQualifier(0));
+      OpenBitSet bitset = HBaseneUtil.toOpenBitSet(value);
+      Assert.assertTrue( bitset.get(1) );
+      Assert.assertTrue( bitset.get(20) );
+      Assert.assertTrue( bitset.get(100) );
+      
+      Assert.assertFalse( bitset.get(2) );
+      Assert.assertFalse( bitset.get(11) );
+      Assert.assertFalse( bitset.get(101) );
+    } catch (IOException e) {
+      e.printStackTrace();
+      fail("Should not have any exception " +
+        e.getClass());
+    }   
+    }
+
   
   public void testLuceneSize() {
     System.out.println("number of 64 bit words"
