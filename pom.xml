@@ -6,8 +6,8 @@
   <groupId>org.hbasene</groupId>
   <artifactId>hbase-core</artifactId>
   <packaging>jar</packaging>
-  <version>0.20.4-with-200-826</version>
-  <name>HBase 0.20.4 + patches</name>
+  <version>0.20.5-SNAPSHOT</version>
+  <name>HBase 0.20.5 + patches</name>
   <description>HBase modified with patches needed for hbasene</description>
   <url>http://hbase.apache.org</url>
   <licenses>
