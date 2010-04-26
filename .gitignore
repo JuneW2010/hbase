@@ -1,6 +1,8 @@
 /.classpath
 /.externalToolBuilders
 /.settings
+/*.asc
+
 /build
 /classes
 /logs
