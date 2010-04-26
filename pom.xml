@@ -38,9 +38,35 @@
       <version>0.20.2-with-200-826</version>
     </dependency>
 
-  </dependencies>
-  
+    <dependency>
+      <groupId>org.hbasene</groupId>
+      <artifactId>thrift</artifactId>
+      <version>0.2.0</version>
+    </dependency>
 
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>3.3.0</version>
+    </dependency>
+
+  </dependencies>
+
+<!--   
+  <repositories>
+	<repository>
+      <id>ibiblio.org</id>
+      <name>ibiblio mirror</name>
+      <url>http://mirrors.ibiblio.org/pub/mirrors/maven2/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
+  </repositories>
+-->  
   <distributionManagement>
     <repository>
       <id>sonatype-nexus-staging</id>
