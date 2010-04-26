@@ -7,14 +7,14 @@ $ mvn gpg:sign-and-deploy-file -DpomFile=hadoop-pom.xml -Dfile=<path tohadoop-co
 2. To deploy the given sources, use   
 
 $ mvn gpg:sign-and-deploy-file -DpomFile=hadoop-pom.xml -Dfile=<path tohadoop-core-0.20.2-with-200-826-sources.jar> \
-    -Dpackaging=java-source -Durl=http://oss.sonatype.org/service/local/staging/deploy/maven2 \
+    -Dclassifier=sources -Durl=http://oss.sonatype.org/service/local/staging/deploy/maven2 \
     -DrepositoryId=sonatype-nexus-staging
 
 3. To deploy the javadocs, use    
 
 $ mvn gpg:sign-and-deploy-file -DpomFile=hadoop-pom.xml -Dfile=<path tohadoop-core-0.20.2-with-200-826-javadoc.jar> \
-    -Dpackaging=javadoc -Durl=http://oss.sonatype.org/service/local/staging/deploy/maven2 \
+    -Dclassifier=javadoc -Durl=http://oss.sonatype.org/service/local/staging/deploy/maven2 \
     -DrepositoryId=sonatype-nexus-staging
     
-    
-    
+
+ 
