@@ -41,13 +41,19 @@
     <dependency>
       <groupId>org.hbasene</groupId>
       <artifactId>thrift</artifactId>
-      <version>0.2.0</version>
+      <version>0.1.0-r771587</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>zookeeper</artifactId>
       <version>3.3.0</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-core</artifactId>
+      <version>3.0.1</version>
     </dependency>
 
   </dependencies>
