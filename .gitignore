@@ -2,7 +2,7 @@
 /.externalToolBuilders
 /.settings
 /*.asc
-
+/target
 /build
 /classes
 /logs
