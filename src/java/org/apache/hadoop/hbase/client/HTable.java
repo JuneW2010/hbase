@@ -87,6 +87,8 @@ public class HTable {
   protected int scannerCaching;
   private int maxKeyValueSize;
 
+  private int maxTermVectorSize;
+  
   private final Map<byte[], OpenBitSet> termDocs = new HashMap<byte[],  OpenBitSet>();
   private int pendingTermDocs = 0;
   
@@ -156,6 +158,8 @@ public class HTable {
       HConstants.DEFAULT_HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE);
     this.maxKeyValueSize = conf.getInt("hbase.client.keyvalue.maxsize", -1);
 
+    //Default is 100K
+    this.maxTermVectorSize = conf.getInt("hbasene.max.term.vector",  100000);
     int nrHRS = getCurrentNrHRS();
     int nrThreads = conf.getInt("hbase.htable.threads.max", nrHRS);
     if (nrThreads == 0) {
@@ -632,7 +636,7 @@ public class HTable {
       this.termDocs.put(row, docs);
       //TODO: This pending Term Docs can be configured depending on the client side memory. 
       // 1M is just about ok. Reduce this if you run into OoME at the client
-      if (this.pendingTermDocs == 1000000) {
+      if (this.pendingTermDocs == this.maxTermVectorSize) {
         //Bulk insert.
         flushCommitTermDocs();
         this.termDocs.clear();
