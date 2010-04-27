@@ -21,10 +21,13 @@ package org.apache.hadoop.hbase.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -84,6 +87,17 @@ public class HTable {
   protected int scannerCaching;
   private int maxKeyValueSize;
 
+  private static Comparator<byte[]> CMP = new Comparator<byte[]>() {
+
+    @Override
+    public int compare(byte[] o1, byte[] o2) {
+      return Bytes.compareTo(o1, o2);
+    } 
+  };
+
+  private final Map<byte[], Set<Long>> termDocs = new TreeMap<byte[], Set<Long>>(CMP);
+  private int pendingTermDocs = 0;
+  
   private long maxScannerResultSize;
   
   /**
@@ -606,33 +620,74 @@ public class HTable {
   * @return The new value.
   * @throws IOException
   */
-  public boolean addDocToTerm(final byte [] row, final byte [] family,
-        final long docId, final boolean writeToWAL)
+  public boolean addDocToTerm(final byte [] row, final long docId, final boolean writeToWAL)
     throws IOException {
       NullPointerException npe = null;
       if (row == null) {
         npe = new NullPointerException("row is null");
-      } else if (family == null) {
-        npe = new NullPointerException("column is null");
-      }
+      } 
       if (npe != null) {
         IOException io = new IOException(
             "Invalid arguments to incrementColumnValue", npe);
         throw io;
       }
-      return connection.getRegionServerWithRetries(
-          new ServerCallable<Boolean>(connection, tableName, row) {
-            public Boolean call() throws IOException {
-              server.addDocToTerm(
-                  location.getRegionInfo().getRegionName(), row, family,
-                  Bytes.toBytes(docId), writeToWAL);
-              return true;
-            }
-          }
-      );
+      Set<Long> docs = this.termDocs.get(row);
+      if (docs == null) { 
+        docs = new HashSet<Long>();
+      }
+      if ( docs.add(docId) ) {
+        ++this.pendingTermDocs;
+      }
+      this.termDocs.put(row, docs);
+      if (this.pendingTermDocs == 1000000) {
+        //Bulk insert.
+      }
+      //Do similar to MultiPut
+      return true;
     }
-    
+  
+      
+  
 
+  /**
+   * Adds a given document, represented as document Id, to a given term , represented by the given row. <p>
+   *
+   * Setting writeToWAL to false means that in a fail scenario, you will lose
+   * any increments that have not been flushed.
+   * @param row
+   * @param family
+   * @param qualifier
+   * @param amount
+   * @param writeToWAL true if increment should be applied to WAL, false if not
+   * @return The new value.
+   * @throws IOException
+   */
+   public boolean addDocToTerm(final byte [] row, final byte [] family,
+         final long docId, final boolean writeToWAL)
+     throws IOException {
+       NullPointerException npe = null;
+       if (row == null) {
+         npe = new NullPointerException("row is null");
+       } else if (family == null) {
+         npe = new NullPointerException("column is null");
+       }
+       if (npe != null) {
+         IOException io = new IOException(
+             "Invalid arguments to incrementColumnValue", npe);
+         throw io;
+       }
+       return connection.getRegionServerWithRetries(
+           new ServerCallable<Boolean>(connection, tableName, row) {
+             public Boolean call() throws IOException {
+               server.addDocToTerm(
+                   location.getRegionInfo().getRegionName(), row, family,
+                   Bytes.toBytes(docId), writeToWAL);
+               return true;
+             }
+           }
+       );
+   }  
+   
   /**
    * Atomically checks if a row/family/qualifier value match the expectedValue.
    * If it does, it adds the put.
