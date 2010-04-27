@@ -1440,11 +1440,11 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
 
 
   /**
-* @param input The Given put to be serialized
-* @param lockid
-* @param writeToWAL
-* @throws IOException
-*/
+   * @param input The Given put to be serialized
+   * @param lockid
+   * @param writeToWAL
+   * @throws IOException 
+   **/
   public void addDocToTerm(final byte[] row, final byte[] family, final byte[] docId, boolean writeToWAL, Integer lockid)
   throws IOException {
     checkReadOnly();
@@ -1469,7 +1469,7 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
       Integer lid = getLock(lockid, row);
       try {
         // All edits for the given row (across all column families) must happen atomically.
-        put(this.xformTermVector(row, family, docId), writeToWAL);
+        put(this.appendDocToTermVector(row, family, docId), writeToWAL);
       } finally {
         if(lockid == null) releaseRowLock(lid);
       }
@@ -1480,20 +1480,59 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
 
   
   /**
-* Transform the given row and docId to a term vector for insertion.
-*
-* @param put
-* @return
-* @throws IOException
-*/
-  Map<byte[], List<KeyValue>> xformTermVector(final byte[] row, final byte[] family, final byte[] docIdBytes) throws IOException {
+   * @param input The Given put to be serialized
+   * @param lockid
+   * @param writeToWAL
+   * @throws IOException 
+   **/
+  public void addTermVector(final byte[] row, final byte[] family, final byte[] termVector, boolean writeToWAL, Integer lockid)
+  throws IOException {
+    checkReadOnly();
+
+    // Do a rough check that we have resources to accept a write. The check is
+    // 'rough' in that between the resource check and the call to obtain a
+    // read lock, resources may run out. For now, the thought is that this
+    // will be extremely rare; we'll deal with it when it happens.
+    checkResources();
+    
+    //Before locking - transform the put.
+    
+    splitsAndClosesLock.readLock().lock();
+
+    try {
+      // We obtain a per-row lock, so other clients will block while one client
+      // performs an update. The read lock is released by the client calling
+      // #commit or #abort or if the HRegionServer lease on the lock expires.
+      // See HRegionServer#RegionListener for how the expire on HRegionServer
+      // invokes a HRegion#abort.
+      // If we did not pass an existing row lock, obtain a new one
+      Integer lid = getLock(lockid, row);
+      try {
+        // All edits for the given row (across all column families) must happen atomically.
+        put(this.appendDocsToTermVector(row, family, termVector), writeToWAL);
+      } finally {
+        if(lockid == null) releaseRowLock(lid);
+      }
+    } finally {
+      splitsAndClosesLock.readLock().unlock();
+    }
+  }
+  
+  /**
+   * Transform the given row and docId to a term vector for insertion.  
+   *
+   * @param put 
+   * @return
+   * @throws IOException
+   **/
+  Map<byte[], List<KeyValue>> appendDocToTermVector(final byte[] row, final byte[] family, final byte[] docIdBytes) throws IOException {
     final Map<byte[], List<KeyValue>> familyMap = new TreeMap<byte[], List<KeyValue>>();
     final long docId = Bytes.toLong(docIdBytes);
     
-    final int partition = (int) ( docId / HBaseneUtil.MAX_DOCS );
-    final int offset = (int) ( docId % HBaseneUtil.MAX_DOCS );
+    //final int partition = (int) ( docId / HBaseneUtil.MAX_DOCS );
+    //final int offset = (int) ( docId % HBaseneUtil.MAX_DOCS );
     
-    final byte[] qualifier = HBaseneUtil.createTermVectorQualifier(partition);
+    final byte[] qualifier = HBaseneUtil.createTermVectorQualifier(0);
     Get get = new Get(row);
     get.addColumn(family, qualifier);
     List<KeyValue> results = this.get(get);
@@ -1505,7 +1544,41 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
     else {
       resultBitSet = HBaseneUtil.toOpenBitSet(results.get(0).getValue());
     }
-    resultBitSet.set(offset);
+    resultBitSet.set(docId);
+    byte [] revisedValue = HBaseneUtil.toBytes(resultBitSet);
+    //xformation ends. Good candidate for refactoring out of this method
+    
+    List<KeyValue> result = new ArrayList<KeyValue>();
+    result.add(new KeyValue(row, family, qualifier, revisedValue));
+
+    familyMap.put(family, result);
+    return familyMap;
+  }  
+  
+  /**
+   * Transform the given row and docId to a term vector for insertion.  
+   *
+   * @param put 
+   * @return
+   * @throws IOException
+   **/
+  Map<byte[], List<KeyValue>> appendDocsToTermVector(final byte[] row, final byte[] family, final byte[] bitSetAsBytes) throws IOException {
+    final Map<byte[], List<KeyValue>> familyMap = new TreeMap<byte[], List<KeyValue>>();
+    final OpenBitSet inputBitSet = HBaseneUtil.toOpenBitSet(bitSetAsBytes);
+    
+    final byte[] qualifier = HBaseneUtil.createTermVectorQualifier(0);
+    Get get = new Get(row);
+    get.addColumn(family, qualifier);
+    List<KeyValue> results = this.get(get);
+    //xformation begins
+    OpenBitSet resultBitSet = null;
+    if (results == null || results.size() == 0) {
+      resultBitSet = HBaseneUtil.createDefaultOpenBitSet();
+    }
+    else {
+      resultBitSet = HBaseneUtil.toOpenBitSet(results.get(0).getValue());
+    }
+    resultBitSet.or(inputBitSet);
     byte [] revisedValue = HBaseneUtil.toBytes(resultBitSet);
     //xformation ends. Good candidate for refactoring out of this method
     

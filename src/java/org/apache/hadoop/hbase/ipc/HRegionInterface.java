@@ -272,5 +272,22 @@ public interface HRegionInterface extends HBaseRPCProtocolVersion {
    **/
   public void addDocToTerm(byte[] regionName, byte[] row, byte[] family,
       final byte[] docId, boolean writeToWAL) throws IOException;
+  
+  
+  
+  /**
+   *  Add Term Vector
+   *
+   *   @param regionName
+   *  @param row
+   * @param family
+   * @param docId
+   * @param writeToWAL
+   * @return
+   *  @throws IOException
+   **/
+  public void addTermVector(byte[] regionName, byte[] row, byte[] family,
+      final byte[] termVector, boolean writeToWAL) throws IOException;
+
 
 }

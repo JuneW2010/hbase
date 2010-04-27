@@ -31,6 +31,8 @@ public class HBaseneUtil {
   
   public static final String QUALIFIER_DOCUMENTS_PREFIX = "qual.documents";  
   
+  public static final byte[] FAMILY_TERMVECTOR = Bytes.toBytes("fm.termVector");
+
   /**
    * Serialization library
    */
@@ -82,7 +84,7 @@ public class HBaseneUtil {
 
   
   public static byte[] createTermVectorQualifier(int partitionId) {
-    return Bytes.toBytes(QUALIFIER_DOCUMENTS_PREFIX + "_" + partitionId);
+    return Bytes.toBytes(QUALIFIER_DOCUMENTS_PREFIX);
   }
    
   public static final int MAX_DOCS = 10000;

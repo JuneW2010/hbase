@@ -43,56 +43,7 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
   private static final byte[] FAMILY_TERMVECTOR = Bytes.toBytes("fm.termVector");
 
 
-  public void testAddDocToTerm() { 
-  HTable table = null;
-  try {
-    HColumnDescriptor column2 =
-      new HColumnDescriptor(FAMILY_TERMVECTOR);
-    HBaseAdmin admin = new HBaseAdmin(conf);
-    HTableDescriptor testTableADesc =
-      new HTableDescriptor(tableAname);
-    testTableADesc.addFamily(column);
-    testTableADesc.addFamily(column2);
-    admin.createTable(testTableADesc);
-    
-    table = new HTable(conf, tableAname);
-    System.out.println("Adding a Document to a table");
-
-    table.addDocToTerm(row, FAMILY_TERMVECTOR, 1, true);
-
-    table.addDocToTerm(row, FAMILY_TERMVECTOR, 20, true);
-    
-    table.addDocToTerm(row, FAMILY_TERMVECTOR, 100, true);
-    
-    Get get = null;
-    Result result = null;
-    
-    get = new Get(row);
-    get.addFamily(FAMILY_TERMVECTOR);
-    System.out.println("Getting row");
-    long start = System.nanoTime();
-    result = table.get(get);
-    long stop = System.nanoTime();
-    System.out.println("timer " +(stop-start));
-    System.out.println("result " +result);
-
-    byte[] value = result.getValue(FAMILY_TERMVECTOR, HBaseneUtil.createTermVectorQualifier(0));
-    OpenBitSet bitset = HBaseneUtil.toOpenBitSet(value);
-    Assert.assertTrue( bitset.get(1) );
-    Assert.assertTrue( bitset.get(20) );
-    Assert.assertTrue( bitset.get(100) );
-    
-    Assert.assertFalse( bitset.get(2) );
-    Assert.assertFalse( bitset.get(11) );
-    Assert.assertFalse( bitset.get(101) );
-  } catch (IOException e) {
-    e.printStackTrace();
-    fail("Should not have any exception " +
-      e.getClass());
-  }   
-  }
-
-  public void testAddDocToTermNoWAL() { 
+  public void testAddTermVector() { 
     HTable table = null;
     try {
       HColumnDescriptor column2 =
@@ -107,19 +58,22 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
       table = new HTable(conf, tableAname);
       System.out.println("Adding a Document to a table");
 
-      table.addDocToTerm(row, FAMILY_TERMVECTOR, 1, false);
+      long start = System.nanoTime();
+      for (long i = 0; i < 1000000; ++i) {
+        table.addDocToTerm(row, i);
+      }
 
-      table.addDocToTerm(row, FAMILY_TERMVECTOR, 20, false);
+      table.flushCommitTermDocs();
+      System.out.println("Bulk Added in " + (double)(System.nanoTime() - start)/ (double) 1000000 + "  ms ");
       
-      table.addDocToTerm(row, FAMILY_TERMVECTOR, 100, false);
-      
+      start = System.nanoTime();    
       Get get = null;
       Result result = null;
       
       get = new Get(row);
       get.addFamily(FAMILY_TERMVECTOR);
       System.out.println("Getting row");
-      long start = System.nanoTime();
+      start = System.nanoTime();
       result = table.get(get);
       long stop = System.nanoTime();
       System.out.println("timer " +(stop-start));
@@ -131,9 +85,9 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
       Assert.assertTrue( bitset.get(20) );
       Assert.assertTrue( bitset.get(100) );
       
-      Assert.assertFalse( bitset.get(2) );
-      Assert.assertFalse( bitset.get(11) );
-      Assert.assertFalse( bitset.get(101) );
+      //Assert.assertFalse( bitset.get(2) );
+      //Assert.assertFalse( bitset.get(11) );
+      //Assert.assertFalse( bitset.get(101) );
     } catch (IOException e) {
       e.printStackTrace();
       fail("Should not have any exception " +
@@ -143,7 +97,7 @@ public class TestHTableTermVector extends HBaseClusterTestCase implements HConst
 
   
   public void testLuceneSize() {
-    System.out.println("number of 64 bit words"
+    System.out.println("number of 64 bit words "
         + OpenBitSet.bits2words(45 * 1000000));
   }
 
