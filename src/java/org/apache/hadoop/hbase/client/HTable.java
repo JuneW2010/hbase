@@ -59,6 +59,7 @@ import org.apache.hadoop.hbase.regionserver.lucene.HBaseneUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.Writables;
+import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.util.OpenBitSet;
 
 
@@ -677,15 +678,12 @@ public class HTable {
       }
       OpenBitSet docs = this.termDocs.get(row);
       if (docs == null) { 
-        docs = new OpenBitSet();
+        docs = HBaseneUtil.createDefaultOpenBitSet();
       }
       docs.set(docId);
       ++this.pendingTermDocs;
       this.termDocs.put(row, docs);
-      //TODO: This pending Term Docs can be configured depending on the client side memory. 
-      // 1M is just about ok. Reduce this if you run into OoME at the client
       if (this.pendingTermDocs == this.maxTermVectorSize) {
-        //Bulk insert.
         flushCommitTermDocs();
         this.termDocs.clear();
         this.pendingTermDocs = 0;
