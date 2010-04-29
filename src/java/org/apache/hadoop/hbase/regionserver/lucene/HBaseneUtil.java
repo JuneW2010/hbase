@@ -79,7 +79,15 @@ public class HBaseneUtil {
    * @return Default openBitSet of a small document size.
    */
   public static OpenBitSet createDefaultOpenBitSet() { 
-    return new OpenBitSet(65); //By default - allocate 1 word  
+    return createDefaultOpenBitSet(65); //By default - allocate 1 word  
+  }
+
+  /**
+   * Create the default openBitSet.
+   * @return Default openBitSet of a small document size.
+   */
+  public static OpenBitSet createDefaultOpenBitSet(long numbits) { 
+    return new OpenBitSet(numbits); 
   }
 
   

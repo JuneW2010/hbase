@@ -678,7 +678,7 @@ public class HTable {
       }
       OpenBitSet docs = this.termDocs.get(row);
       if (docs == null) { 
-        docs = HBaseneUtil.createDefaultOpenBitSet();
+        docs = HBaseneUtil.createDefaultOpenBitSet(docId);
       }
       docs.set(docId);
       this.termDocs.put(row, docs);
