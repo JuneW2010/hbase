@@ -77,6 +77,9 @@ import org.apache.lucene.util.OpenBitSet;
  * respect to other concurrent readers and writers. 
  */
 public class HTable {
+  protected static final Log LOG =
+    LogFactory.getLog(HTable.class.getName());
+
   private final HConnection connection;
   private final byte [] tableName;
   protected final int scannerTimeout;
@@ -160,7 +163,7 @@ public class HTable {
     this.maxKeyValueSize = conf.getInt("hbase.client.keyvalue.maxsize", -1);
 
     //Default is 100K
-    this.maxTermVectorSize = conf.getInt("hbasene.max.term.vector",  100000);
+    this.maxTermVectorSize = conf.getInt("hbasene.max.term.vector",  10000);
     int nrHRS = getCurrentNrHRS();
     int nrThreads = conf.getInt("hbase.htable.threads.max", nrHRS);
     if (nrThreads == 0) {
@@ -694,6 +697,7 @@ public class HTable {
       
   void flushCommitTermDocs() throws IOException {
     //TODO: Scope for concurrent inserts at this point
+    LOG.info("Flushing " + this.termDocs.size() + " terms of " + this);
     for (final Map.Entry<byte[], OpenBitSet> entry : this.termDocs.entrySet()) { 
       connection.getRegionServerWithRetries(
           new ServerCallable<Boolean>(connection, tableName, entry.getKey()) {
