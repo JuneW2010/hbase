@@ -27,7 +27,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -91,10 +93,7 @@ public class HTable {
   protected int scannerCaching;
   private int maxKeyValueSize;
 
-  private int maxTermVectorSize;
-  
-  private final Map<byte[], OpenBitSet> termDocs = new HashMap<byte[],  OpenBitSet>();
-  private int pendingTermDocs = 0;
+  private final Map<byte[], OpenBitSet> termDocs = new TreeMap<byte[],  OpenBitSet>(Bytes.BYTES_COMPARATOR);
   
   private long maxScannerResultSize;
   
@@ -162,8 +161,6 @@ public class HTable {
       HConstants.DEFAULT_HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE);
     this.maxKeyValueSize = conf.getInt("hbase.client.keyvalue.maxsize", -1);
 
-    //Default is 100K
-    this.maxTermVectorSize = conf.getInt("hbasene.max.term.vector",  10000);
     int nrHRS = getCurrentNrHRS();
     int nrThreads = conf.getInt("hbase.htable.threads.max", nrHRS);
     if (nrThreads == 0) {
@@ -684,31 +681,37 @@ public class HTable {
         docs = HBaseneUtil.createDefaultOpenBitSet();
       }
       docs.set(docId);
-      ++this.pendingTermDocs;
       this.termDocs.put(row, docs);
-      if (this.pendingTermDocs == this.maxTermVectorSize) {
-        flushCommitTermDocs();
-      }
   }
   
       
   void flushCommitTermDocs() throws IOException {
     //TODO: Scope for concurrent inserts at this point
     LOG.info("Flushing " + this.termDocs.size() + " terms of " + this);
+    final List<Future<Boolean>> futures = new ArrayList<Future<Boolean>>();
     for (final Map.Entry<byte[], OpenBitSet> entry : this.termDocs.entrySet()) { 
       connection.getRegionServerWithRetries(
-          new ServerCallable<Boolean>(connection, tableName, entry.getKey()) {
-            public Boolean call() throws IOException {
-              server.addTermVector(
+        new ServerCallable<Boolean>(connection, tableName, entry.getKey()) {
+          public Boolean call() throws IOException {
+            server.addTermVector(
                   location.getRegionInfo().getRegionName(), entry.getKey(), HBaseneUtil.FAMILY_TERMVECTOR,
                   HBaseneUtil.toBytes(entry.getValue()), false);
-              return true;
-            }
+             return true;
           }
+        }
       );   
     }
-    this.termDocs.clear();
-    this.pendingTermDocs = 0;
+    try {
+      for (final Future<Boolean> future : futures) {
+        future.get();
+      }
+      LOG.info(futures.size() + " futures completed ");
+      this.termDocs.clear();
+    } catch (Exception ie) {
+      throw new IOException(
+          "Exception occured while asynchronously sending data", ie);
+    }
+
   }
 
   /**
