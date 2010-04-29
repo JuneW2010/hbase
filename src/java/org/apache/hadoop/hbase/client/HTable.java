@@ -688,9 +688,6 @@ public class HTable {
       this.termDocs.put(row, docs);
       if (this.pendingTermDocs == this.maxTermVectorSize) {
         flushCommitTermDocs();
-        this.termDocs.clear();
-        this.pendingTermDocs = 0;
-      
       }
   }
   
@@ -710,6 +707,8 @@ public class HTable {
           }
       );   
     }
+    this.termDocs.clear();
+    this.pendingTermDocs = 0;
   }
 
   /**
