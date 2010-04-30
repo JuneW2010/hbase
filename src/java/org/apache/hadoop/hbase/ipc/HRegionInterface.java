@@ -287,7 +287,7 @@ public interface HRegionInterface extends HBaseRPCProtocolVersion {
    *  @throws IOException
    **/
   public void addTermVector(byte[] regionName, byte[] row, byte[] family,
-      final byte[] termVector, boolean writeToWAL) throws IOException;
+      final byte[] termVector, final byte[] base, boolean writeToWAL) throws IOException;
 
 
 }

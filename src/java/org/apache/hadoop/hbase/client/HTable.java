@@ -92,6 +92,9 @@ public class HTable {
   private long currentWriteBufferSize;
   protected int scannerCaching;
   private int maxKeyValueSize;
+  private long lastVisitedDocId = 0;
+  private long docBase = 0;
+
 
   private final Map<byte[], OpenBitSet> termDocs = new TreeMap<byte[],  OpenBitSet>(Bytes.BYTES_COMPARATOR);
   
@@ -678,11 +681,12 @@ public class HTable {
       }
       OpenBitSet docs = this.termDocs.get(row);
       if (docs == null) { 
-        docs = HBaseneUtil.createDefaultOpenBitSet(docId);
+        docs = HBaseneUtil.createDefaultOpenBitSet();
         currentWriteBufferSize += (docs.getNumWords() * 8);
       }
-      docs.set(docId);
+      docs.set(docId - docBase);
       this.termDocs.put(row, docs);
+      lastVisitedDocId = docId;
   }
   
       
@@ -696,7 +700,7 @@ public class HTable {
           public Boolean call() throws IOException {
             server.addTermVector(
                   location.getRegionInfo().getRegionName(), entry.getKey(), HBaseneUtil.FAMILY_TERMVECTOR,
-                  HBaseneUtil.toBytes(entry.getValue()), false);
+                  HBaseneUtil.toBytes(entry.getValue()), Bytes.toBytes(docBase), false);
              return true;
           }
         }
@@ -708,6 +712,7 @@ public class HTable {
       }
       LOG.info(futures.size() + " futures completed ");
       this.termDocs.clear();
+      this.docBase = this.lastVisitedDocId;
     } catch (Exception ie) {
       throw new IOException(
           "Exception occured while asynchronously sending data", ie);

@@ -51,6 +51,7 @@ import org.apache.hadoop.hbase.regionserver.lucene.HBaseneUtil;
  import org.apache.hadoop.hbase.util.Writables;
  import org.apache.hadoop.util.Progressable;
  import org.apache.hadoop.util.StringUtils;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.OpenBitSet;
 
  import java.io.IOException;
@@ -1485,7 +1486,7 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
    * @param writeToWAL
    * @throws IOException 
    **/
-  public void addTermVector(final byte[] row, final byte[] family, final byte[] termVector, boolean writeToWAL, Integer lockid)
+  public void addTermVector(final byte[] row, final byte[] family, final byte[] termVector, final byte[] base, boolean writeToWAL, Integer lockid)
   throws IOException {
     checkReadOnly();
 
@@ -1509,7 +1510,7 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
       Integer lid = getLock(lockid, row);
       try {
         // All edits for the given row (across all column families) must happen atomically.
-        put(this.appendDocsToTermVector(row, family, termVector), writeToWAL);
+        put(this.appendDocsToTermVector(row, family, termVector, base), writeToWAL);
       } finally {
         if(lockid == null) releaseRowLock(lid);
       }
@@ -1562,10 +1563,18 @@ public class HRegion implements HConstants, HeapSize { // , Writable{
    * @return
    * @throws IOException
    **/
-  Map<byte[], List<KeyValue>> appendDocsToTermVector(final byte[] row, final byte[] family, final byte[] bitSetAsBytes) throws IOException {
+  Map<byte[], List<KeyValue>> appendDocsToTermVector(final byte[] row, final byte[] family, final byte[] bitSetAsBytes, final byte[] baseAsBytes) throws IOException {
     final Map<byte[], List<KeyValue>> familyMap = new TreeMap<byte[], List<KeyValue>>();
-    final OpenBitSet inputBitSet = HBaseneUtil.toOpenBitSet(bitSetAsBytes);
-    
+    OpenBitSet givenBitSet = HBaseneUtil.toOpenBitSet(bitSetAsBytes);
+    final long base = Bytes.toLong(baseAsBytes);
+    final OpenBitSet inputBitSet = new OpenBitSet();
+    DocIdSetIterator disi = givenBitSet.iterator();
+    while (true) {
+      int docId = disi.nextDoc();
+      if (docId == DocIdSetIterator.NO_MORE_DOCS) break;
+      inputBitSet.set(base + docId);
+    }
+    givenBitSet = null;
     final byte[] qualifier = HBaseneUtil.createTermVectorQualifier(0);
     Get get = new Get(row);
     get.addColumn(family, qualifier);

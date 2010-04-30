@@ -2529,7 +2529,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
    *  @return
    **/
   public void addTermVector(byte[] regionName, byte[] row, byte[] family,
-        byte[] termVector, boolean writeToWAL) throws IOException {
+        byte[] termVector, byte[] base, boolean writeToWAL) throws IOException {
     if (row == null)
       throw new IllegalArgumentException("update has null row");
       
@@ -2540,7 +2540,7 @@ public class HRegionServer implements HConstants, HRegionInterface,
       if (!region.getRegionInfo().isMetaTable()) {
         this.cacheFlusher.reclaimMemStoreMemory();
       }
-      region.addTermVector(row, family, termVector, writeToWAL, getLockFromId(-1));
+      region.addTermVector(row, family, termVector, base, writeToWAL, getLockFromId(-1));
     } catch (Throwable t) {
       throw convertThrowableToIOE(cleanup(t));
     }
