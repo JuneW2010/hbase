@@ -681,7 +681,7 @@ public class HTable {
       }
       OpenBitSet docs = this.termDocs.get(row);
       if (docs == null) { 
-        docs = HBaseneUtil.createDefaultOpenBitSet();
+        docs = new OpenBitSet();
         currentWriteBufferSize += (docs.getNumWords() * 8);
       }
       docs.set(docId - docBase);
