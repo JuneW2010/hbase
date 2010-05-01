@@ -787,7 +787,7 @@ public class HTable {
         currentWriteBufferSize += writeBuffer.get(i).heapSize();
       }
     }
-    this.flushCommitTermDocs();
+    //this.flushCommitTermDocs();
   }
 
   /**
